@@ -44,33 +44,35 @@
              (interA (v. rsvec direction))) ;cosine angle
         (when (> interA 0.0)
             (let* ((rslen (v. rsvec rsvec)) ;length^2
-                   (interB (- r2 (+ rslen (* interA interA)))))
-              (when (and (> interB 0.0) (> r2 interB))
+                   (interB (+ (- r2 rslen) (* interA interA))))
+              (when (and (> interB 0.0) (>= r2 interB))
                   (let* ((dist (- interA (sqrt interB)))
-                         (interpt (v+ origin (* dist direction)))
+                         (interpt (v+ origin (v* dist direction)))
                          (normal (vunit (v- interpt position))))
                     (make-ray-intersection :distance dist
                                            :point interpt
                                            :direction direction
                                            :normal normal)))))))))
 
+;; Decompose intersect to separate checks
 (defun intersect-check-A (origin direction position radius)
   (let* ((rsvec (v- position origin))
-         (r2 (* radius radius))         ;radius^2
-         (interA (v. rsvec direction)))
+         (r2 (* radius radius))             ;radius^2
+         (interA (v. rsvec direction)))     ;cosine angle
     (when (> interA 0.0)
       (values rsvec r2 interA))))
 
 (defun intersect-check-B (rsvec r2 interA)
-  (let* ((rslen (v. rsvec rsvec))       ;length^2
-         (interB (- r2 (+ rslen (* interA interA)))))
-    (when (and (> interB 0.0) (> r2 interB))
-      (values interA interB))))
+  (let* ((rslength (v. rsvec rsvec))        ;length^2
+         (interB (+ (- r2 rslength) (* interA interA)))) ;<====
+    (if (and (> interB 0.0) (<= interB r2))
+        (values interA interB)
+        (format t "~S" (list rsvec rslength interA interB)))))
 
 (defun intersect-decompose (sphere ray)
   (with-slots (origin direction) ray
     (with-slots (position radius) sphere
-      (multiple-value-call #'intersect-check-B
+      (multiple-value-call #'intersect-check-B ;will error if checkA produces nil
         (intersect-check-A origin
                            direction
                            position
