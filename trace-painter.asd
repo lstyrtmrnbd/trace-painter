@@ -1,12 +1,10 @@
 ;;;; trace-painter.asd
 
 (asdf:defsystem #:trace-painter
-  :description "Describe trace-painter here"
+  :description "Ray tracer"
   :author "Your Name <your.name@example.com>"
-  :license  "Specify license here"
+  :license  "MIT"
   :version "0.0.1"
   :serial t
-  :components (("3d-vectors")
-               ("3d-matrices")
-               (:file "package")
+  :components ((:file "package")
                (:file "trace-painter")))
