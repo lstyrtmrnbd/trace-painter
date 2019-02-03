@@ -21,15 +21,17 @@
   ((origin :initarg :origin :accessor origin :type vec3)
    (direction :initarg :dir :accessor dir :type vec3)))
 
-(defclass sphere ()
-  ((position :initarg :pos :accessor pos :type vec3)
-   (radius :initarg :r :accessor r :type float)))
-
 (defstruct ray-intersection
   (distance 0.0 :type float)
   (point (vec3 0 0 0) :type vec3)
   (direction (vec3 0 0 0) :type vec3)
   (normal (vec3 0 0 0) :type vec3))
+
+;;; Forms
+
+(defclass sphere ()
+  ((position :initarg :pos :accessor pos :type vec3)
+   (radius :initarg :r :accessor r :type float)))
 
 (defgeneric intersect (shape ray)
   (:documentation "Check if provided ray intersects shape"))
@@ -54,7 +56,7 @@
                                            :direction direction
                                            :normal normal)))))))))
 
-;; Decompose intersect to separate checks
+;; Decompose sphere intersect to separate checks
 (defun intersect-check-A (origin direction position radius)
   (let* ((rsvec (v- position origin))
          (r2 (* radius radius))             ;radius^2
@@ -78,5 +80,28 @@
         (when interA
           (intersect-check-B rsvec r2 interA))))))
 
+;;; Casting
 
+(defun focal-length (width height fov)
+  (/ (+ (* width width)
+        (* height height))
+     (* 2 (tan (/ fov 4.0)))))
 
+(defvar width 1280)
+(defvar height 720)
+(defvar focal-point (focal-length width height 90))
+
+;; screen at 0 0 0
+;; origin at 0 0 -focal
+
+;; cons a list of rays
+(defun generate-rays (w h z origin)
+  (let ((result '()))
+    (dotimes (x w)
+      (dotimes (y h)
+        (push (make-instance 'ray :origin origin
+                             :dir (vunit (vec (- x (/ w 2.0))
+                                              (- y (/ h 2.0))
+                                              (- z (vz origin)))))
+              result)))
+    result))
