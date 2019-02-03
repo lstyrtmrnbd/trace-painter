@@ -66,16 +66,17 @@
   (let* ((rslength (v. rsvec rsvec))        ;length^2
          (interB (+ (- r2 rslength) (* interA interA)))) ;<====
     (if (and (> interB 0.0) (<= interB r2))
-        (values interA interB)
-        (format t "~S" (list rsvec rslength interA interB)))))
+        (- interA (sqrt interB))            ;distance to intersection
+        (format t "~S"
+                (list rsvec rslength interA interB)))))
 
 (defun intersect-decompose (sphere ray)
   (with-slots (origin direction) ray
     (with-slots (position radius) sphere
-      (multiple-value-call #'intersect-check-B ;will error if checkA produces nil
-        (intersect-check-A origin
-                           direction
-                           position
-                           radius)))))
+      (destructuring-bind (rsvec r2 interA)
+          (multiple-value-list (intersect-check-A origin direction position radius))
+        (when interA
+          (intersect-check-B rsvec r2 interA))))))
+
 
 
