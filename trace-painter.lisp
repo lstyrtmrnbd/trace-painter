@@ -87,15 +87,9 @@
         (* height height))
      (* 2 (tan (/ fov 4.0)))))
 
-(defvar width 1280)
-(defvar height 720)
-(defvar focal-point (focal-length width height 90))
-
-;; screen at 0 0 0
-;; origin at 0 0 -focal
-
 ;; cons a list of rays
 (defun generate-rays (w h z origin)
+  "w: width of screen, h: height of screen, z: z-pos of screen"
   (let ((result '()))
     (dotimes (x w)
       (dotimes (y h)
@@ -105,3 +99,23 @@
                                               (- z (vz origin)))))
               result)))
     result))
+
+(defvar width 1280)
+(defvar height 720)
+(defvar focal-depth (focal-length width height 90))
+
+(defvar sphere0 (make-instance 'sphere :r 64 :pos (vec 0 0 -512)))
+(defvar objects (list sphere0))
+
+;; screen at 0 0 0
+;; origin at 0 0 -focal
+(defvar rays (generate-rays width height 0 (vec 0 0 focal-depth)))
+
+(defun trace-rays (rays objects)
+  (mapcar (lambda (ray)
+            (mapcar (lambda (object)
+                      (intersect object ray))
+                    objects))
+          rays))
+
+(defvar intersections (trace-rays rays objects))
