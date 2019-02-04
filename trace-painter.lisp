@@ -36,7 +36,7 @@
 (defgeneric intersect (shape ray)
   (:documentation "Check if provided ray intersects shape"))
 
-(proclaim '(optimize (debug 3)))
+;(proclaim '(optimize (debug 3)))
 (defmethod intersect ((shape sphere) ray)
   "Transcription of intersectFast, consider where to use destructive vec ops"
   (with-slots (origin direction) ray
@@ -83,9 +83,9 @@
 ;;; Casting
 
 (defun focal-length (width height fov)
-  (/ (+ (* width width)
-        (* height height))
-     (* 2 (tan (/ fov 4.0)))))
+  (sqrt (/ (+ (* width width)
+              (* height height))
+           (* 2 (tan (/ fov 4.0))))))
 
 ;; cons a list of rays
 (defun generate-rays (w h z origin)
@@ -104,12 +104,12 @@
 (defvar height 720)
 (defvar focal-depth (focal-length width height 90))
 
-(defvar sphere0 (make-instance 'sphere :r 64 :pos (vec 0 0 -512)))
-(defvar objects (list sphere0))
-
 ;; screen at 0 0 0
 ;; origin at 0 0 -focal
 (defvar rays (generate-rays width height 0 (vec 0 0 focal-depth)))
+
+(defvar sphere0 (make-instance 'sphere :r 128 :pos (vec 0 0 -64)))
+(defvar objects (list sphere0))
 
 (defun trace-rays (rays objects)
   (mapcar (lambda (ray)
@@ -119,3 +119,13 @@
           rays))
 
 (defvar intersections (trace-rays rays objects))
+
+(defun count-hits (intersections)
+  (count-if (lambda (inter)
+              (not (null (car inter))))
+            intersections))
+
+(defun get-hits (intersections)
+  (remove-if (lambda (inter)
+               (null (car inter)))
+             intersections))
