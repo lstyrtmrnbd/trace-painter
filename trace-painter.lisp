@@ -21,6 +21,15 @@
   ((origin :initarg :origin :accessor origin :type vec3)
    (direction :initarg :dir :accessor dir :type vec3)))
 
+;;; Records
+
+(defstruct material
+  (color (vec3 0 0 0) :type vec3)
+  (ambient-k (vec3 0 0 0) :type vec3)
+  (diffuse-k (vec3 0 0 0) :type vec3)
+  (specular-k (vec3 0 0 0) :type vec3)
+  (shininess 0.0 :type float))
+
 (defstruct ray-intersection
   (distance 0.0 :type float)
   (point (vec3 0 0 0) :type vec3)
@@ -29,18 +38,26 @@
 
 ;;; Forms
 
-(defclass sphere ()
+(defclass shape ()
+  ((material :initarg :material :accessor material :type material)))
+
+(defclass sphere (shape)
   ((position :initarg :pos :accessor pos :type vec3)
    (radius :initarg :r :accessor r :type float)))
 
-(defgeneric intersect (shape ray)
-  (:documentation "Check if provided ray intersects shape"))
+(defclass plane (shape)
+  ((position :initarg :pos :accessor pos :type vec3)
+   (normal :initarg :normal :accessor normal :type vec3)))
 
+(defgeneric intersect (form ray)
+  (:documentation "Check if provided ray intersects form"))
+
+;;Sphere intersect
 ;(proclaim '(optimize (debug 3)))
-(defmethod intersect ((shape sphere) ray)
+(defmethod intersect ((form sphere) ray)
   "Transcription of intersectFast, consider where to use destructive vec ops"
   (with-slots (origin direction) ray
-    (with-slots (position radius) shape
+    (with-slots (position radius) form
       (let* ((rsvec (v- position origin))
              (r2 (* radius radius))         ;radius^2
              (interA (v. rsvec direction))) ;cosine angle
@@ -56,7 +73,7 @@
                                            :direction direction
                                            :normal normal)))))))))
 
-;; Decompose sphere intersect to separate checks
+;; Decompose sphere intersect to separate checks for debugging
 (defun intersect-check-A (origin direction position radius)
   (let* ((rsvec (v- position origin))
          (r2 (* radius radius))             ;radius^2
@@ -79,6 +96,20 @@
           (multiple-value-list (intersect-check-A origin direction position radius))
         (when interA
           (intersect-check-B rsvec r2 interA))))))
+
+;; Plane intersect
+(defmethod intersect ((form plane) ray)
+  (with-slots (origin direction) ray
+    (with-slots (position normal) form
+      (let ((denominator (v. normal direction)))
+        (when (> denominator 1.0e-6)
+          (let* ((l (v- position origin))
+                 (distance (/ (v. l normal) denominator)))
+            (when (> distance 0.0)
+              (make-ray-intersection :distance distance
+                                     :point (v+ origin (* distance direction))
+                                     :direction direction
+                                     :normal normal))))))))
 
 ;;; Casting
 
