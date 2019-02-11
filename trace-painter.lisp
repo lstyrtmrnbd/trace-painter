@@ -172,6 +172,18 @@
       (walk lst 0))
     result))
 
+(defun array-to-colors (arr elt-count)
+  "Makes a 2D array of elt-count length lists into a 3D array"
+  (let* ((w (array-dimension arr 0))
+         (h (array-dimension arr 1))
+         (result (make-array (list w h elt-count))))
+    (dotimes (x w)
+      (dotimes (y h)
+        (dotimes (c elt-count)
+          (setf (aref result x y c)
+                (car (nthcdr c (aref arr x y)))))))
+    result))
+
 (defun array-to-png (arr bit-depth)
   "Maps 3D column-major array to PNG image,
    which is accessed as a row-major array"
@@ -187,14 +199,19 @@
     result))
 
 (defun basic-hit-fn (intr)
-  (if (not (null intr))
+  (if (not (null (car intr)))
       (list 255 255 255)
       (list 0 0 0)))
 
 (defun basic-hit-png (intrs)
-  (array-to-png (intersections-to-array intrs width height
-                                        #'basic-hit-fn)
-                8))
+  (array-to-png
+   (array-to-colors
+    (intersections-to-array intrs
+                            width
+                            height
+                            #'basic-hit-fn)
+    3)
+   8))
 
 (defun write-png (path png)
   (with-open-file (output path :element-type (png:image-bit-depth png)
