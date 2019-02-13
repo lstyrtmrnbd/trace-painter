@@ -186,13 +186,13 @@
    which is accessed as a column-major array"
   (let* ((w (array-dimension arr 0))
          (h (array-dimension arr 1))
-         (result (png:make-image w h 3 bit-depth)))
+         (result (png:make-image h w 3 bit-depth)))
     (dotimes (x w)
       (dotimes (y h)
         (let ((color (aref arr x y)))
-          (setf (aref result x y 0) (rgb-red color)
-                (aref result x y 1) (rgb-green color)
-                (aref result x y 2) (rgb-blue color)))))
+          (setf (aref result y x 0) (rgb-red color)
+                (aref result y x 1) (rgb-green color)
+                (aref result y x 2) (rgb-blue color)))))
     result))
 
 (defun basic-hit-fn (intr)
