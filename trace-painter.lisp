@@ -211,3 +211,17 @@
   (with-open-file (output path :element-type '(unsigned-byte 8)
                           :direction :output :if-exists :supersede)
     (png:encode png output)))
+
+(defun generate-filename ()
+  (pathname (concatenate 'string
+                         "renders/render-"
+                         (write-to-string (get-universal-time))
+                         ".png")))
+
+(defun test-render (intersections color-fn)
+  (write-png (generate-filename)
+             (array-to-png (intersections-to-array intersections
+                                                   width
+                                                   height
+                                                   color-fn)
+                           8)))
