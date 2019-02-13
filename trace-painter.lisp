@@ -12,10 +12,19 @@
 ;; map over object list with transformations at a certain framerate
 ;; then output it
 
-
 (defclass ray ()
   ((origin :initarg :origin :accessor origin :type vec3)
    (direction :initarg :dir :accessor dir :type vec3)))
+
+(deftype unit-real ()
+  "Real number in [0,1]."
+  '(real 0 1))
+
+(defstruct (rgb (:constructor rgb (red green blue)))
+  "RGB color."
+  (red nil :type unsigned-byte :read-only t)
+  (green nil :type unsigned-byte :read-only t)
+  (blue nil :type unsigned-byte :read-only t))
 
 ;;; Records
 
@@ -160,60 +169,45 @@
 
 ;;; Output
 
-(defun intersections-to-array (lst width height &optional (fn #'identity))
+(defun intersections-to-array (lst width height &optional (color-fn #'identity))
   "Maps the 1D intersection list to a 2D array, 
-   optionally transforming each element by fn"
+   optionally transforming each element by color-fn"
   (let ((result (make-array (list width height))))
     (labels ((walk (ls ctr)
                (when (< ctr (* width height)) ;assumes length of list >= w*h
                  (setf (aref result (floor ctr height) (mod ctr height))
-                       (funcall fn (car ls)))
+                       (funcall color-fn (car ls)))
                  (walk (cdr ls) (1+ ctr)))))
       (walk lst 0))
     result))
 
-(defun array-to-colors (arr elt-count)
-  "Makes a 2D array of elt-count length lists into a 3D array"
-  (let* ((w (array-dimension arr 0))
-         (h (array-dimension arr 1))
-         (result (make-array (list w h elt-count))))
-    (dotimes (x w)
-      (dotimes (y h)
-        (dotimes (c elt-count)
-          (setf (aref result x y c)
-                (car (nthcdr c (aref arr x y)))))))
-    result))
-
 (defun array-to-png (arr bit-depth)
-  "Maps 3D column-major array to PNG image,
-   which is accessed as a row-major array"
+  "Maps 2D row-major array of rgb to PNG image,
+   which is accessed as a column-major array"
   (let* ((w (array-dimension arr 0))
          (h (array-dimension arr 1))
-         (d (array-dimension arr 2))
-         (result (png:make-image w h d bit-depth)))
+         (result (png:make-image w h 3 bit-depth)))
     (dotimes (x w)
       (dotimes (y h)
-        (dotimes (c d)
-          (setf (aref result y x c)
-                (aref arr x y c)))))
+        (let ((color (aref arr x y)))
+          (setf (aref result x y 0) (rgb-red color)
+                (aref result x y 1) (rgb-green color)
+                (aref result x y 2) (rgb-blue color)))))
     result))
 
 (defun basic-hit-fn (intr)
   (if (not (null (car intr)))
-      (list 255 255 255)
-      (list 0 0 0)))
+      (rgb 255 255 255)
+      (rgb 0 0 0)))
 
 (defun basic-hit-png (intrs)
-  (array-to-png
-   (array-to-colors
-    (intersections-to-array intrs
-                            width
-                            height
-                            #'basic-hit-fn)
-    3)
-   8))
+  (array-to-png (intersections-to-array intrs
+                                        width
+                                        height
+                                        #'basic-hit-fn)
+                8))
 
 (defun write-png (path png)
-  (with-open-file (output path :element-type (png:image-bit-depth png)
+  (with-open-file (output path :element-type '(unsigned-byte 8)
                           :direction :output :if-exists :supersede)
     (png:encode png output)))
