@@ -22,9 +22,9 @@
 
 (defstruct (rgb (:constructor rgb (red green blue)))
   "RGB color."
-  (red nil :type unsigned-byte :read-only t)
-  (green nil :type unsigned-byte :read-only t)
-  (blue nil :type unsigned-byte :read-only t))
+  (red nil :type unit-real :read-only t)
+  (green nil :type unit-real :read-only t)
+  (blue nil :type unit-real :read-only t))
 
 ;;; Records
 
@@ -124,8 +124,8 @@
 ;; origin at 0 0 -focal
 (defvar rays (generate-rays width height 0 (vec 0 0 focal-depth)))
 
-(defvar red-mat (make-material :color (vec 255 0 0)))
-(defvar green-mat (make-material :color (vec 0 255 0)))
+(defvar red-mat (make-material :color (vec 1 0 0)))
+(defvar green-mat (make-material :color (vec 0 1 0)))
 
 (defvar sphere0 (make-instance 'sphere :r 128
                                :pos (vec 0 0 -64)
@@ -171,6 +171,11 @@
       (walk lst 0))
     result))
 
+(defun unit-real-to-unsigned-byte (real bit-depth)
+  "Turns RGB value into unsigned byte for png output"
+  (let ((max (1- (expt 2 bit-depth))))
+    (floor (* real max))))
+
 (defun array-to-png (arr bit-depth)
   "Maps 2D row-major array of rgb to PNG image,
    which is accessed as a column-major array"
@@ -179,21 +184,24 @@
          (result (png:make-image h w 3 bit-depth)))
     (dotimes (x w)
       (dotimes (y h)
-        (let ((color (aref arr x y)))
-          (setf (aref result y x 0) (rgb-red color)
-                (aref result y x 1) (rgb-green color)
-                (aref result y x 2) (rgb-blue color)))))
+        (let* ((color (aref arr x y))
+               (red (unit-real-to-unsigned-byte (rgb-red color) bit-depth))
+               (green (unit-real-to-unsigned-byte (rgb-green color) bit-depth))
+               (blue (unit-real-to-unsigned-byte (rgb-blue color) bit-depth)))
+          (setf (aref result y x 0) red
+                (aref result y x 1) green
+                (aref result y x 2) blue))))
     result))
 
 (defun basic-hit-fn (intr)
   (if (not (null (car intr)))
-      (rgb 255 255 255)
+      (rgb 1.0 1.0 1.0)
       (rgb 0 0 0)))
 
 (defun color-material (intr)
   (if (not (null (car intr)))
       (let ((color (material-color (ray-intersection-material (car intr)))))
-        (rgb (first color) (second color) (third color)))
+        (rgb (vx color) (vy color) (vz color)))
       (rgb 0 0 0)))
 
 (defun basic-hit-png (intrs)
