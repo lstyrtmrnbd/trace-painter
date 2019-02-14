@@ -39,7 +39,8 @@
   (distance 0.0 :type float)
   (point (vec3 0 0 0) :type vec3)
   (direction (vec3 0 0 0) :type vec3)
-  (normal (vec3 0 0 0) :type vec3))
+  (normal (vec3 0 0 0) :type vec3)
+  (material '() :type material))
 
 ;;; Forms
 
@@ -76,31 +77,8 @@
                     (make-ray-intersection :distance dist
                                            :point interpt
                                            :direction direction
-                                           :normal normal)))))))))
-
-;; Decompose sphere intersect to separate checks for debugging
-(defun intersect-check-A (origin direction position radius)
-  (let* ((rsvec (v- position origin))
-         (r2 (* radius radius))             ;radius^2
-         (interA (v. rsvec direction)))     ;cosine angle
-    (when (> interA 0.0)
-      (values rsvec r2 interA))))
-
-(defun intersect-check-B (rsvec r2 interA)
-  (let* ((rslength (v. rsvec rsvec))        ;length^2
-         (interB (+ (- r2 rslength) (* interA interA)))) ;<====
-    (if (and (> interB 0.0) (<= interB r2))
-        (- interA (sqrt interB))            ;distance to intersection
-        (format t "~S"
-                (list rsvec rslength interA interB)))))
-
-(defun intersect-decompose (sphere ray)
-  (with-slots (origin direction) ray
-    (with-slots (position radius) sphere
-      (destructuring-bind (rsvec r2 interA)
-          (multiple-value-list (intersect-check-A origin direction position radius))
-        (when interA
-          (intersect-check-B rsvec r2 interA))))))
+                                           :normal normal
+                                           :material (material form))))))))))
 
 ;; Plane intersect
 (defmethod intersect ((form plane) ray)
@@ -112,9 +90,10 @@
                  (distance (/ (v. l normal) denominator)))
             (when (> distance 0.0)
               (make-ray-intersection :distance distance
-                                     :point (v+ origin (* distance direction))
+                                     :point (v+ origin (v* distance direction))
                                      :direction direction
-                                     :normal normal))))))))
+                                     :normal normal
+                                     :material (material form)))))))))
 
 ;;; Casting
 
@@ -145,8 +124,19 @@
 ;; origin at 0 0 -focal
 (defvar rays (generate-rays width height 0 (vec 0 0 focal-depth)))
 
-(defvar sphere0 (make-instance 'sphere :r 128 :pos (vec 0 0 -64)))
-(defvar objects (list sphere0))
+(defvar red-mat (make-material :color (vec 255 0 0)))
+(defvar green-mat (make-material :color (vec 0 255 0)))
+
+(defvar sphere0 (make-instance 'sphere :r 128
+                               :pos (vec 0 0 -64)
+                               :material green-mat))
+
+(defvar plane0 (make-instance 'plane
+                              :pos (vec 0 0 0)
+                              :normal (vunit (vec 0 -1 0.125))
+                              :material red-mat))
+
+(defvar objects (list sphere0 plane0))
 
 (defun trace-rays (rays objects)
   (mapcar (lambda (ray)
@@ -200,6 +190,12 @@
       (rgb 255 255 255)
       (rgb 0 0 0)))
 
+(defun color-material (intr)
+  (if (not (null (car intr)))
+      (let ((color (material-color (ray-intersection-material (car intr)))))
+        (rgb (first color) (second color) (third color)))
+      (rgb 0 0 0)))
+
 (defun basic-hit-png (intrs)
   (array-to-png (intersections-to-array intrs
                                         width
@@ -214,7 +210,7 @@
 
 (defun generate-filename ()
   (pathname (concatenate 'string
-                         "renders/render-"
+                         "c:/Users/user0/src/CL/trace-painter/renders/render-"
                          (write-to-string (get-universal-time))
                          ".png")))
 
