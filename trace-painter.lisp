@@ -40,7 +40,7 @@
   (point (vec3 0 0 0) :type vec3)
   (direction (vec3 0 0 0) :type vec3)
   (normal (vec3 0 0 0) :type vec3)
-  (material '() :type material))
+  (material (make-material) :type material))
 
 ;;; Forms
 
@@ -132,17 +132,29 @@
                                :material green-mat))
 
 (defvar plane0 (make-instance 'plane
-                              :pos (vec 0 0 0)
-                              :normal (vunit (vec 0 -1 0.125))
+                              :pos (vec 0 0 -64)
+                              :normal (vunit (vec 0 1 0.125))
                               :material red-mat))
 
 (defvar objects (list sphere0 plane0))
 
+(defun closest-intersection (intrl)
+  (reduce (lambda (intr1 intr2)
+            (if (null intr2)
+                intr1
+                (let ((dist1 (ray-intersection-distance intr1))
+                      (dist2 (ray-intersection-distance intr2)))
+                  (if (< dist1 dist2)
+                      intr1
+                      intr2))))
+          intrl))
+
 (defun trace-rays (rays objects)
   (mapcar (lambda (ray)
-            (mapcar (lambda (object)
-                      (intersect object ray))
-                    objects))
+            (closest-intersection
+             (mapcar (lambda (object)
+                       (intersect object ray))
+                     objects)))
           rays))
 
 (defvar intersections (trace-rays rays objects))
@@ -194,13 +206,13 @@
     result))
 
 (defun basic-hit-fn (intr)
-  (if (not (null (car intr)))
+  (if (not (null intr))
       (rgb 1.0 1.0 1.0)
       (rgb 0 0 0)))
 
 (defun color-material (intr)
-  (if (not (null (car intr)))
-      (let ((color (material-color (ray-intersection-material (car intr)))))
+  (if (not (null intr))
+      (let ((color (material-color (ray-intersection-material intr))))
         (rgb (vx color) (vy color) (vz color)))
       (rgb 0 0 0)))
 
