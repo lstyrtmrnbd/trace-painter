@@ -2,31 +2,21 @@
 
 (in-package #:trace-painter)
 
-;;  - fill object list
-;;  - cast rays
-;;  - if hit cast subrays
-;;  - fill intersection record
-;;  - paint using this info
-
-;; animation:
-;; map over object list with transformations at a certain framerate
-;; then output it
+;;;--Records-----------------------------------------------------------
 
 (defclass ray ()
   ((origin :initarg :origin :accessor origin :type vec3)
    (direction :initarg :dir :accessor dir :type vec3)))
 
 (deftype unit-real ()
-  "Real number in [0,1]."
+  "Real number in [0,1]"
   '(real 0 1))
 
 (defstruct (rgb (:constructor rgb (red green blue)))
-  "RGB color."
+  "RGB color"
   (red nil :type unit-real :read-only t)
   (green nil :type unit-real :read-only t)
   (blue nil :type unit-real :read-only t))
-
-;;; Records
 
 (defstruct material
   (color (vec3 0 0 0) :type vec3)
@@ -42,7 +32,7 @@
   (normal (vec3 0 0 0) :type vec3)
   (material (make-material) :type material))
 
-;;; Forms
+;;;--Forms------------------------------------------------------------
 
 (defclass shape ()
   ((material :initarg :material :accessor material :type material)))
@@ -95,7 +85,7 @@
                                      :normal normal
                                      :material (material form)))))))))
 
-;;; Casting
+;;;--Casting----------------------------------------------------------------
 
 (defun focal-length (width height fov)
   (sqrt (/ (+ (* width width)
@@ -169,7 +159,7 @@
                (null (car inter)))
              intersections))
 
-;;; Output
+;;;--Output---------------------------------------------------------------------
 
 (defun intersections-to-array (lst width height &optional (color-fn #'identity))
   "Maps the 1D intersection list to a 2D array, 
