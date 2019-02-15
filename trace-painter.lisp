@@ -87,48 +87,39 @@
 
 ;;;--Casting----------------------------------------------------------------
 
+(defstruct screen
+  "Screen through which rays are cast"
+  (width 1280 :type integer)
+  (height 720 :type integer)
+  (position (vec 0 0 0) :type vec3))
+
 (defun focal-length (width height fov)
   (sqrt (/ (+ (* width width)
               (* height height))
            (* 2 (tan (/ fov 4.0))))))
 
+(defun screen-focus (screen fov)
+  "Returns focal depth for a particular screen and FOV"
+  (with-slots (width height) screen
+    (focal-length width height fov)))
+
 ;; cons a list of rays
-(defun generate-rays (w h z origin)
-  "w: width of screen, h: height of screen, z: z-pos of screen"
-  (let ((result '()))
-    (dotimes (x w)
-      (dotimes (y h)
-        (push (make-instance 'ray :origin origin
-                             :dir (vunit (vec (- x (/ w 2.0))
-                                              (- y (/ h 2.0))
-                                              (- z (vz origin)))))
-              result)))
-    result))
-
-;; these are properties of some 'screen'
-(defvar width 1280)
-(defvar height 720)
-(defvar focal-depth (focal-length width height 90))
-
-;; screen at 0 0 0
-;; origin at 0 0 -focal
-(defvar rays (generate-rays width height 0 (vec 0 0 focal-depth)))
-
-(defvar red-mat (make-material :color (vec 1 0 0)))
-(defvar green-mat (make-material :color (vec 0 1 0)))
-
-(defvar sphere0 (make-instance 'sphere :r 128
-                               :pos (vec 0 0 -64)
-                               :material green-mat))
-
-(defvar plane0 (make-instance 'plane
-                              :pos (vec 0 0 -64)
-                              :normal (vunit (vec 0 1 0.125))
-                              :material red-mat))
-
-(defvar objects (list sphere0 plane0))
+(defun generate-rays (screen origin)
+  "Uniformly generate rays through a screen from origin"
+  (with-slots (width height position) screen
+    (let ((z (vz position))
+          (result '()))
+      (dotimes (x width)
+        (dotimes (y height)
+          (push (make-instance 'ray :origin origin
+                               :dir (vunit (vec (- x (/ width 2.0))
+                                                (- y (/ height 2.0))
+                                                (- z (vz origin)))))
+                result)))
+      result)))
 
 (defun closest-intersection (intrl)
+  "Reduces a list of intersections to just the closest"
   (reduce (lambda (intr1 intr2)
             (if (null intr2)
                 intr1
@@ -147,21 +138,20 @@
                      objects)))
           rays))
 
-(defvar intersections (trace-rays rays objects))
-
 (defun count-hits (intersections)
   (count-if (lambda (inter)
-              (not (null (car inter))))
+              (not (null inter)))
             intersections))
 
 (defun get-hits (intersections)
   (remove-if (lambda (inter)
-               (null (car inter)))
+               (null inter))
              intersections))
 
-;;;--Output---------------------------------------------------------------------
+;;;--Output----------------------------------------------------------
 
-(defun intersections-to-array (lst width height &optional (color-fn #'identity))
+(defun intersections-to-array (lst width height
+                               &optional (color-fn #'identity))
   "Maps the 1D intersection list to a 2D array, 
    optionally transforming each element by color-fn"
   (let ((result (make-array (list width height))))
@@ -179,8 +169,8 @@
     (floor (* real max))))
 
 (defun array-to-png (arr bit-depth)
-  "Maps 2D row-major array of rgb to PNG image,
-   which is accessed as a column-major array"
+  "Maps 2D row-major array of RGB type to PNG image,
+   which is a column-major array of unsigned bytes 8 or 16"
   (let* ((w (array-dimension arr 0))
          (h (array-dimension arr 1))
          (result (png:make-image h w 3 bit-depth)))
@@ -195,6 +185,7 @@
                 (aref result y x 2) blue))))
     result))
 
+;; Coloring functions
 (defun basic-hit-fn (intr)
   (if (not (null intr))
       (rgb 1.0 1.0 1.0)
@@ -206,13 +197,7 @@
         (rgb (vx color) (vy color) (vz color)))
       (rgb 0 0 0)))
 
-(defun basic-hit-png (intrs)
-  (array-to-png (intersections-to-array intrs
-                                        width
-                                        height
-                                        #'basic-hit-fn)
-                8))
-
+;; File output
 (defun write-png (path png)
   (with-open-file (output path :element-type '(unsigned-byte 8)
                           :direction :output :if-exists :supersede)
@@ -224,10 +209,34 @@
                          (write-to-string (get-universal-time))
                          ".png")))
 
+;;;--Test Scene------------------------------------------------------
+
+(defvar test-screen (make-screen))
+(defvar test-origin (vec 0 0 (screen-focus test-screen 90)))
+
+(defvar rays (generate-rays test-screen test-origin))
+
+(defvar red-mat (make-material :color (vec 1 0 0)))
+(defvar green-mat (make-material :color (vec 0 1 0)))
+
+(defvar sphere0 (make-instance 'sphere :r 128
+                               :pos (vec 0 0 -64)
+                               :material green-mat))
+
+(defvar plane0 (make-instance 'plane
+                              :pos (vec 0 0 -64)
+                              :normal (vunit (vec 0 1 0.125))
+                              :material red-mat))
+
+(defvar objects (list sphere0 plane0))
+
+(defvar intersections (trace-rays rays objects))
+
 (defun test-render (intersections color-fn)
   (write-png (generate-filename)
              (array-to-png (intersections-to-array intersections
-                                                   width
-                                                   height
+                                                   (screen-width test-screen)  ;!!
+                                                   (screen-height test-screen) ;!!
                                                    color-fn)
                            8)))
+
