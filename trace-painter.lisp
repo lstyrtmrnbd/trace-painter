@@ -121,13 +121,15 @@
 (defun closest-intersection (intrl)
   "Reduces a list of intersections to just the closest"
   (reduce (lambda (intr1 intr2)
-            (if (null intr2)
-                intr1
-                (let ((dist1 (ray-intersection-distance intr1))
-                      (dist2 (ray-intersection-distance intr2)))
-                  (if (< dist1 dist2)
-                      intr1
-                      intr2))))
+            (cond
+              ((null intr2) intr1)
+              ((null intr1) intr2)
+              (t
+               (let ((dist1 (ray-intersection-distance intr1))
+                     (dist2 (ray-intersection-distance intr2)))
+                 (if (< dist1 dist2)
+                     intr1
+                     intr2)))))
           intrl))
 
 (defun trace-rays (rays objects)
@@ -225,7 +227,7 @@
 
 (defvar plane0 (make-instance 'plane
                               :pos (vec 0 0 -64)
-                              :normal (vunit (vec 0 1 0.125))
+                              :normal (vunit (vec 0 -1 -0.125))
                               :material red-mat))
 
 (defvar objects (list sphere0 plane0))
