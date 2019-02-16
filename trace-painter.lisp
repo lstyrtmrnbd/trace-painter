@@ -155,13 +155,13 @@
 ;;;--Lighting--------------------------------------------------------------
 
 (defclass ambient-light ()
-  (intensity :initarg :intensity :accessor intensity :type vec3))
+  ((intensity :initarg :intensity :accessor intensity :type vec3)))
 
 (defgeneric contribute (intr light)
   (:documentation "Calculate RGB contribution from light to intersection"))
 
-(defmethod contribute ((ray-intersection intr) (ambient-light light))
-  (with-slots (ambient-k) intr
+(defmethod contribute (intr (light ambient-light))
+  (with-slots (ambient-k) (ray-intersection-material intr)
     (with-slots (intensity) light
       (rgb (* (vx ambient-k) (vx intensity))
            (* (vy ambient-k) (vx intensity))
@@ -180,6 +180,20 @@
       (let ((color (material-color (ray-intersection-material intr))))
         (rgb (vx color) (vy color) (vz color)))
       (rgb 0 0 0)))
+
+(defun ambient-pass (intr light)
+  (if (not (null intr))
+      (let ((mat-vec (material-color (ray-intersection-material intr)))
+            (amb-color (contribute intr light)))
+        (rgb (* (vx mat-vec) (rgb-red amb-color))
+             (* (vy mat-vec) (rgb-green amb-color))
+             (* (vz mat-vec) (rgb-blue amb-color))))
+      (rgb 0 0 0)))
+
+(defun color-ambient (ambient)
+  "Returns closure for specific ambient light"
+  (lambda (intr)
+    (ambient-pass intr ambient)))
 
 (defun intersections-to-array (lst width height
                                &optional (color-fn #'identity))
