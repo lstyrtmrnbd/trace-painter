@@ -20,17 +20,19 @@
 
 (defstruct material
   (color (vec3 0 0 0) :type vec3)
-  (ambient-k (vec3 0 0 0) :type vec3)
+  (ambient-k (vec3 1.0 1.0 1.0) :type vec3)
   (diffuse-k (vec3 0 0 0) :type vec3)
   (specular-k (vec3 0 0 0) :type vec3)
   (shininess 0.0 :type float))
+
+(defvar default-material (make-material))
 
 (defstruct ray-intersection
   (distance 0.0 :type float)
   (point (vec3 0 0 0) :type vec3)
   (direction (vec3 0 0 0) :type vec3)
   (normal (vec3 0 0 0) :type vec3)
-  (material (make-material) :type material))
+  (material default-material :type material))
 
 ;;;--Forms------------------------------------------------------------
 
@@ -150,7 +152,34 @@
                (null inter))
              intersections))
 
-;;;--Output----------------------------------------------------------
+;;;--Lighting--------------------------------------------------------------
+
+(defclass ambient-light ()
+  (intensity :initarg :intensity :accessor intensity :type vec3))
+
+(defgeneric contribute (intr light)
+  (:documentation "Calculate RGB contribution from light to intersection"))
+
+(defmethod contribute ((ray-intersection intr) (ambient-light light))
+  (with-slots (ambient-k) intr
+    (with-slots (intensity) light
+      (rgb (* (vx ambient-k) (vx intensity))
+           (* (vy ambient-k) (vx intensity))
+           (* (vz ambient-k) (vz intensity))))))
+
+;;;--Shading---------------------------------------------------------------
+
+;; Shading passes
+(defun basic-hit-fn (intr)
+  (if (not (null intr))
+      (rgb 1.0 1.0 1.0)
+      (rgb 0 0 0)))
+
+(defun color-material (intr)
+  (if (not (null intr))
+      (let ((color (material-color (ray-intersection-material intr))))
+        (rgb (vx color) (vy color) (vz color)))
+      (rgb 0 0 0)))
 
 (defun intersections-to-array (lst width height
                                &optional (color-fn #'identity))
@@ -172,7 +201,7 @@
 
 (defun array-to-png (arr bit-depth)
   "Maps 2D row-major array of RGB type to PNG image,
-   which is a column-major array of unsigned bytes 8 or 16"
+   which is a column-major array of unsigned bytes 8 or 16 bits deep"
   (let* ((w (array-dimension arr 0))
          (h (array-dimension arr 1))
          (result (png:make-image h w 3 bit-depth)))
@@ -186,18 +215,6 @@
                 (aref result y x 1) green
                 (aref result y x 2) blue))))
     result))
-
-;; Coloring functions
-(defun basic-hit-fn (intr)
-  (if (not (null intr))
-      (rgb 1.0 1.0 1.0)
-      (rgb 0 0 0)))
-
-(defun color-material (intr)
-  (if (not (null intr))
-      (let ((color (material-color (ray-intersection-material intr))))
-        (rgb (vx color) (vy color) (vz color)))
-      (rgb 0 0 0)))
 
 ;; File output
 (defun write-png (path png)
