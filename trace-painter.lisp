@@ -21,7 +21,7 @@
 (defstruct material
   (color (vec3 0 0 0) :type vec3)
   (ambient-k (vec3 1.0 1.0 1.0) :type vec3)
-  (diffuse-k (vec3 0 0 0) :type vec3)
+  (diffuse-k (vec3 1.0 1.0 1.0) :type vec3)
   (specular-k (vec3 0 0 0) :type vec3)
   (shininess 0.0 :type float))
 
@@ -167,9 +167,7 @@
 (defmethod contribute (intr (light ambient-light))
   (with-slots (ambient-k) (ray-intersection-material intr)
     (with-slots (intensity) light
-      (rgb (* (vx ambient-k) (vx intensity))
-           (* (vy ambient-k) (vx intensity))
-           (* (vz ambient-k) (vz intensity))))))
+      (v* ambient-k intensity))))
 
 (defmethod contribute (intr (light distant-light))
   (with-slots (normal material) intr
@@ -177,13 +175,10 @@
       (with-slots (intensity direction) light
         (let* ((to-light (v* -1.0 direction))
                (factor (max 0.0 (v. normal to-light))))
-          (rgb (* factor (vx diffusal-k) (vx intensity))
-               (* factor (vy diffusal-k) (vy intensity))
-               (* factor (vz diffusal-k) (vz intensity))))))))
+          (v* factor diffusal-k intensity))))))
 
 ;;;--Shading---------------------------------------------------------------
 
-;; Shading passes
 (defun basic-hit-fn (intr)
   (if (not (null intr))
       (rgb 1.0 1.0 1.0)
@@ -198,10 +193,9 @@
 (defun ambient-pass (intr light)
   (if (not (null intr))
       (let ((mat-vec (material-color (ray-intersection-material intr)))
-            (amb-color (contribute intr light)))
-        (rgb (* (vx mat-vec) (rgb-red amb-color))
-             (* (vy mat-vec) (rgb-green amb-color))
-             (* (vz mat-vec) (rgb-blue amb-color))))
+            (amb-vec (contribute intr light))
+            (ambient (v* mat-vec amb-color)))
+        (rgb (vx ambient) (vy ambient) (vz ambient)))
       (with-slots (intensity) light
           (rgb (vx intensity) (vy intensity) (vz intensity)))))
 
@@ -209,6 +203,26 @@
   "Returns closure for specific ambient light"
   (lambda (intr)
     (ambient-pass intr ambient)))
+
+(defun compose-color-vectors (vec1 vec2)
+  "Vector addition accounting for nil"
+  (cond
+    ((null vec1) vec2)
+    ((null vec2) vec1)
+    (t
+     (v+ vec1 vec2))))
+
+(defun shade (intr lights)
+  "The greater shading pipeline, composes all lighting passes"
+  (if (not (null intr))
+      (let* ((color-vec (reduce #'compose-color-vectors
+                                (mapcar #'shade ;function of intr returning vec3
+                                        lights)))
+             (mat-vec (material-color (ray-intersection-material intr)))
+             (product (v* color-vec mat-vec)))
+        (rgb (vx product) (vy product) (vz product)))))
+
+;;;--Formatting-and-Output--------------------------------------------------
 
 (defun intersections-to-array (lst width height
                                &optional (color-fn #'identity))
