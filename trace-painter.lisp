@@ -171,13 +171,14 @@
 
 (defmethod contribute (intr (light distant-light))
   (with-slots (normal material) intr
-    (with-slots (diffusal-k) material
+    (with-slots (diffuse-k) material
       (with-slots (intensity direction) light
         (let* ((to-light (v* -1.0 direction))
                (factor (max 0.0 (v. normal to-light))))
-          (v* factor diffusal-k intensity))))))
+          (v* factor diffuse-k intensity))))))
 
 ;;;--Shading---------------------------------------------------------------
+;;---produces RGB results per intersection
 
 (defun basic-hit-fn (intr)
   (if (not (null intr))
@@ -212,15 +213,34 @@
     (t
      (v+ vec1 vec2))))
 
+(defmethod clamp ((val number) floor ceiling)
+  (cond
+    ((> val ceiling) ceiling)
+    ((< val floor) floor)
+    (t val)))
+
+(defmethod clamp ((val vec3) floor ceiling)
+  (vec (clamp (vx val) floor ceiling)
+       (clamp (vy val) floor ceiling)
+       (clamp (vz val) floor ceiling)))
+
+;; Per intersection light list should be pre-filtered by shadow casts 
 (defun shade (intr lights)
-  "The greater shading pipeline, composes all lighting passes"
+  "The greater shading pipeline, composes all lighting passes for an intersection"
   (if (not (null intr))
       (let* ((color-vec (reduce #'compose-color-vectors
-                                (mapcar #'shade ;function of intr returning vec3
+                                (mapcar (lambda (light)
+                                          (contribute intr light))
                                         lights)))
              (mat-vec (material-color (ray-intersection-material intr)))
-             (product (v* color-vec mat-vec)))
-        (rgb (vx product) (vy product) (vz product)))))
+             (product (clamp (v* color-vec mat-vec) 0.0 1.0))) ; CLAMP IS STOPGAP
+        (rgb (vx product) (vy product) (vz product)))
+      (rgb 0 0 0)))
+
+(defun shade-lights (lights)
+  "Closure for specific light list"
+  (lambda (intr)
+    (shade intr lights)))
 
 ;;;--Formatting-and-Output--------------------------------------------------
 
