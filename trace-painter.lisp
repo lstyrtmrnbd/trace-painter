@@ -155,7 +155,11 @@
 ;;;--Lighting--------------------------------------------------------------
 
 (defclass ambient-light ()
-  ((intensity :initarg :intensity :accessor intensity :type vec3)))
+  ((intensity :initarg :intensity :accessor intensity :type vec3))) ;clamp 0-1
+
+(defclass distant-light ()
+  ((intensity :initarg :intensity :accessor intensity :type vec3)   ;clamp 0-1
+   (direction :initarg :direction :accessor direction :type vec3))) ;normalize
 
 (defgeneric contribute (intr light)
   (:documentation "Calculate RGB contribution from light to intersection"))
@@ -166,6 +170,16 @@
       (rgb (* (vx ambient-k) (vx intensity))
            (* (vy ambient-k) (vx intensity))
            (* (vz ambient-k) (vz intensity))))))
+
+(defmethod contribute (intr (light distant-light))
+  (with-slots (normal material) intr
+    (with-slots (diffusal-k) material
+      (with-slots (intensity direction) light
+        (let* ((to-light (v* -1.0 direction))
+               (factor (max 0.0 (v. normal to-light))))
+          (rgb (* factor (vx diffusal-k) (vx intensity))
+               (* factor (vy diffusal-k) (vy intensity))
+               (* factor (vz diffusal-k) (vz intensity))))))))
 
 ;;;--Shading---------------------------------------------------------------
 
@@ -188,7 +202,8 @@
         (rgb (* (vx mat-vec) (rgb-red amb-color))
              (* (vy mat-vec) (rgb-green amb-color))
              (* (vz mat-vec) (rgb-blue amb-color))))
-      (rgb 0 0 0)))
+      (with-slots (intensity) light
+          (rgb (vx intensity) (vy intensity) (vz intensity)))))
 
 (defun color-ambient (ambient)
   "Returns closure for specific ambient light"
