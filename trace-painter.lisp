@@ -177,8 +177,18 @@
                (factor (max 0.0 (v. normal to-light))))
           (v* factor diffuse-k intensity))))))
 
+(defgeneric direction-to (point light)
+  (:documentation "Calculate the direction from a point to a light, used for shadow tracing"))
+
+(defmethod direction-to (point (light ambient-light))
+  "Ambient light can't be shadowed"
+  nil)
+
+(defmethod direction-to (point (light distant-light))
+  (v- (direction light)))
+
 ;;;--Shading---------------------------------------------------------------
-;;---produces RGB results per intersection
+;;--produces RGB results per intersection
 
 (defun basic-hit-fn (intr)
   (if (not (null intr))
@@ -224,7 +234,9 @@
        (clamp (vy val) floor ceiling)
        (clamp (vz val) floor ceiling)))
 
-;; Per intersection light list should be pre-filtered by shadow casts 
+;; Per intersection light list should be pre-filtered by shadow casts
+;; Clamping the light and material color product is a stopgap,
+;;  there should probably be a lerp somewhere
 (defun shade (intr lights)
   "The greater shading pipeline, composes all lighting passes for an intersection"
   (if (not (null intr))
@@ -233,14 +245,28 @@
                                           (contribute intr light))
                                         lights)))
              (mat-vec (material-color (ray-intersection-material intr)))
-             (product (clamp (v* color-vec mat-vec) 0.0 1.0))) ; CLAMP IS STOPGAP
+             (product (clamp (v* color-vec mat-vec) 0.0 1.0)))
         (rgb (vx product) (vy product) (vz product)))
       (rgb 0 0 0)))
 
 (defun shade-lights (lights)
-  "Closure for specific light list"
+  "Closure which shades an intersection for a specific light list"
   (lambda (intr)
     (shade intr lights)))
+
+(defun generate-shadow-rays (intr lights)
+  "Make list of rays from an intersection to each light in lights,
+   a nil in the list implies an unconditional hit"
+  (with-slots (point) intr
+    (mapcar (lambda (light)
+              (when-let (direction (direction-to point light))
+                (make-instance 'ray
+                               :origin point
+                               :dir direction)))
+            lights)))
+
+(defun filter-shadows (intr objects lights)
+  "Filter a light list based on shadow rays from an intersection")
 
 ;;;--Formatting-and-Output--------------------------------------------------
 
@@ -300,6 +326,7 @@
 
 (defvar red-mat (make-material :color (vec 1 0 0)))
 (defvar green-mat (make-material :color (vec 0 1 0)))
+(defvar blue-mat (make-material :color (vec 0 0 1)))
 
 (defvar sphere0 (make-instance 'sphere :r 128
                                :pos (vec 0 0 -64)
