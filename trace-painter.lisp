@@ -135,6 +135,7 @@
           intrl))
 
 (defun trace-rays (rays objects)
+  "Primary ray tracing"
   (mapcar (lambda (ray)
             (closest-intersection
              (mapcar (lambda (object)
@@ -178,7 +179,7 @@
           (v* factor diffuse-k intensity))))))
 
 (defgeneric direction-to (point light)
-  (:documentation "Calculate the direction from a point to a light, used for shadow tracing"))
+  (:documentation "Calculate the direction from a point to a light, for shadow tracing"))
 
 (defmethod direction-to (point (light ambient-light))
   "Ambient light can't be shadowed"
@@ -186,6 +187,11 @@
 
 (defmethod direction-to (point (light distant-light))
   (v- (direction light)))
+
+(defgeneric distance-from (point light)
+  (:documentation "The distance from a point to a light, for shadow tracing"))
+
+(defmethod distance-from ())
 
 ;;;--Shading---------------------------------------------------------------
 ;;--produces RGB results per intersection
@@ -259,11 +265,37 @@
    a nil in the list implies an unconditional hit"
   (with-slots (point) intr
     (mapcar (lambda (light)
-              (when-let (direction (direction-to point light))
+              (alexandria:when-let (direction (direction-to point light))
                 (make-instance 'ray
                                :origin point
                                :dir direction)))
             lights)))
+
+(defun generate-shadow-ray (intr light)
+  (with-slots (point) intr
+    (alexandria:when-let (direction (direction-to point light))
+      (make-instance 'ray
+                     :origin point
+                     :dir direction))))
+
+(defun before-distance (intr distance)
+  "Filter for intersections beyond a certain distance"
+  (when intr
+    (when (> (distance intr) distance)
+      nil)))
+
+(defun true (x)
+  (not (null x)))
+
+(defun trace-shadow-ray (intr objects light)
+  "Trace shadow ray from an intersection to a light,
+   returns t if shadowed and nil otherwise"
+  (alexandria:when-let (ray (generate-shadow-ray intr light))
+    (some #'true
+          (mapcar (lambda (object)
+                    (true (before-distance (intersect object ray)
+                                           (vlength (v- (origin ray))))))
+                  objects))))
 
 (defun filter-shadows (intr objects lights)
   "Filter a light list based on shadow rays from an intersection")
