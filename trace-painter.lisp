@@ -143,6 +143,12 @@
                      objects)))
           rays))
 
+(defun trace-ray (ray objects)
+  "Single ray trace, no filtering"
+  (mapcar (lambda (object)
+            (intersect object ray))
+          objects))
+
 (defun count-hits (intersections)
   (count-if (lambda (inter)
               (not (null inter)))
@@ -188,10 +194,16 @@
 (defmethod direction-to (point (light distant-light))
   (v- (direction light)))
 
-(defgeneric distance-from (point light)
+(defgeneric distance-to (point light)
   (:documentation "The distance from a point to a light, for shadow tracing"))
 
-(defmethod distance-from ())
+(defmethod distance-to (point (light ambient-light))
+  "Ambient light has no origin"
+  nil)
+
+(defmethod distance-to (point (light distant-light))
+  "Distant light has only a directional origin"
+  nil)
 
 ;;;--Shading---------------------------------------------------------------
 ;;--produces RGB results per intersection
@@ -260,23 +272,24 @@
   (lambda (intr)
     (shade intr lights)))
 
-(defun generate-shadow-rays (intr lights)
-  "Make list of rays from an intersection to each light in lights,
-   a nil in the list implies an unconditional hit"
+(defun filter-shadows (intr lights objects)
+  "Filters a list of lights through shadowcasting"
   (with-slots (point) intr
-    (mapcar (lambda (light)
-              (alexandria:when-let (direction (direction-to point light))
-                (make-instance 'ray
-                               :origin point
-                               :dir direction)))
-            lights)))
+    (remove-if #'null
+               (mapcar (lambda (light)
+                         (unless (alexandria:when-let (direction (direction-to point light))
+                                   (trace-ray (make-instance 'ray :origin point
+                                                             :dir direction)
+                                              objects))
+                           light))
+                       lights))))
 
-(defun generate-shadow-ray (intr light)
-  (with-slots (point) intr
-    (alexandria:when-let (direction (direction-to point light))
-      (make-instance 'ray
-                     :origin point
-                     :dir direction))))
+(defun shadow-lights (lights objects)
+  "Closure which casts shadows before shading intersection"
+  (lambda (intr)
+    (if intr
+        (shade intr (filter-shadows intr lights objects))
+        (shade intr lights))))
 
 (defun before-distance (intr distance)
   "Filter for intersections beyond a certain distance"
@@ -286,19 +299,6 @@
 
 (defun true (x)
   (not (null x)))
-
-(defun trace-shadow-ray (intr objects light)
-  "Trace shadow ray from an intersection to a light,
-   returns t if shadowed and nil otherwise"
-  (alexandria:when-let (ray (generate-shadow-ray intr light))
-    (some #'true
-          (mapcar (lambda (object)
-                    (true (before-distance (intersect object ray)
-                                           (vlength (v- (origin ray))))))
-                  objects))))
-
-(defun filter-shadows (intr objects lights)
-  "Filter a light list based on shadow rays from an intersection")
 
 ;;;--Formatting-and-Output--------------------------------------------------
 
@@ -360,18 +360,35 @@
 (defvar green-mat (make-material :color (vec 0 1 0)))
 (defvar blue-mat (make-material :color (vec 0 0 1)))
 
+(defvar grey-material (make-material :color (vec 0.5 0.5 0.5)))
+
 (defvar sphere0 (make-instance 'sphere :r 128
                                :pos (vec 0 0 -64)
                                :material green-mat))
 
-(defvar plane0 (make-instance 'plane
-                              :pos (vec 0 0 -64)
-                              :normal (vunit (vec 0 -1 -0.125))
-                              :material red-mat))
+(defvar sphere1 (make-instance 'sphere :r 128
+                               :pos (vec -256 0 -64)
+                               :material blue-mat))
 
-(defvar objects (list sphere0 plane0))
+(defvar sphere2 (make-instance 'sphere :r 128
+                               :pos (vec 256 0 -64)
+                               :material red-mat))
+
+(defvar plane0 (make-instance 'plane
+                              :pos (vec 0 -256 -64)
+                              :normal (vunit (vec 0 -1 -0.125))
+                              :material grey-material))
+
+(defvar objects (list sphere0 sphere1 sphere2 plane0))
 
 (defvar intersections (trace-rays rays objects))
+
+(defvar ambient (make-instance 'ambient-light :intensity (vec 0.5 0.5 0.5)))
+
+(defvar distant (make-instance 'distant-light :intensity (vec 0.25 0.25 0.25)
+                               :direction (vec 0 -1 0)))
+
+(defvar lights (list ambient distant))
 
 (defun test-render (intersections color-fn)
   (write-png (generate-filename)
