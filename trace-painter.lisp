@@ -159,6 +159,12 @@
                (null inter))
              intersections))
 
+(defun any-hits (intersections)
+  (notevery #'null intersections))
+
+(defun no-hits (intersections)
+  (every #'null intersections))
+
 ;;;--Lighting--------------------------------------------------------------
 
 (defclass ambient-light ()
@@ -278,12 +284,13 @@
     (remove-if #'null
                (mapcar (lambda (light)
                          (unless (alexandria:when-let (direction (direction-to point light))
-                                   (trace-ray (make-instance 'ray :origin point
-                                                             :dir direction)
-                                              objects))
+                                   (any-hits (trace-ray (make-instance 'ray :origin point
+                                                                       :dir direction)
+                                                        objects)))
                            light))
                        lights))))
 
+;; The higher up the null intersection test in the pipeline the better
 (defun shadow-lights (lights objects)
   "Closure which casts shadows before shading intersection"
   (lambda (intr)
@@ -348,6 +355,27 @@
                          "c:/Users/user0/src/CL/trace-painter/renders/render-"
                          (write-to-string (get-universal-time))
                          ".png")))
+
+;;;--Modeling--------------------------------------------------------
+
+(defun make-sphere (radius position material)
+  (make-instance 'sphere :r radius :pos position :material material))
+
+(defun make-plane (position normal material)
+  (make-instance 'plane :pos position :normal normal :material material))
+
+(defmethod copy-form ((form sphere))
+  (make-sphere (r form)
+               (pos form)
+               (material form)))
+
+(defmethod copy-form ((form plane))
+  (make-plane (pos form)
+              (normal form)
+              (material form)))
+
+(defun move (form newpos)
+  (setf (pos form) newpos))
 
 ;;;--Test Scene------------------------------------------------------
 
