@@ -377,6 +377,11 @@
 (defun move (form newpos)
   (setf (pos form) newpos))
 
+(defun move-all (forms offset)
+  (mapcar (lambda (form)
+            (move form (v+ (pos form) offset)))
+          forms))
+
 ;;;--Test Scene------------------------------------------------------
 
 (defvar test-screen (make-screen))
