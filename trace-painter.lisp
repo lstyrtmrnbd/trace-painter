@@ -22,7 +22,7 @@
   (color (vec3 0 0 0) :type vec3)
   (ambient-k (vec3 1.0 1.0 1.0) :type vec3)
   (diffuse-k (vec3 1.0 1.0 1.0) :type vec3)
-  (specular-k (vec3 0 0 0) :type vec3)
+  (specular-k (vec3 0 0 0) :type vec3) ;"shininess"
   (shininess 0.0 :type float))
 
 (defvar default-material (make-material))
@@ -177,6 +177,18 @@
 (defgeneric contribute (intr light)
   (:documentation "Calculate RGB contribution from light to intersection"))
 
+(defun reflect (incident normal)
+  (v- incident (v* 2.0 normal (v. normal incident))))
+
+(defun lambertian (normal direction)
+  "normal: surface normal, direction: light direction"
+  (max 0.0 (v. normal (v* -1.0 direction))))
+
+(defun phong (normal view-dir light-dir shininess)
+  (let* ((reflect-dir (reflect (v* -1.0 light-dir) normal))
+         (spec-angle (max 0.0 (v. reflect-dir view-dir))))
+    (expt spec-angle (/ shininess 4.0))))
+
 (defmethod contribute (intr (light ambient-light))
   (with-slots (ambient-k) (ray-intersection-material intr)
     (with-slots (intensity) light
@@ -186,9 +198,9 @@
   (with-slots (normal material) intr
     (with-slots (diffuse-k) material
       (with-slots (intensity direction) light
-        (let* ((to-light (v* -1.0 direction))
-               (factor (max 0.0 (v. normal to-light))))
-          (v* factor diffuse-k intensity))))))
+        (v* (lambertian normal direction)
+            diffuse-k
+            intensity)))))
 
 (defgeneric direction-to (point light)
   (:documentation "Calculate the direction from a point to a light, for shadow tracing"))
