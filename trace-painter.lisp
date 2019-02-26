@@ -23,7 +23,7 @@
   (ambient-k (vec3 1.0 1.0 1.0) :type vec3)
   (diffuse-k (vec3 1.0 1.0 1.0) :type vec3)
   (specular-k (vec3 0 0 0) :type vec3)
-  (shininess 0.0 :type float))
+  (shininess 0 :type integer)) ;must be integer for (expt 0 shininess)
 
 (defvar default-material (make-material))
 
@@ -167,11 +167,13 @@
 
 ;;;--Lighting--------------------------------------------------------------
 
-(defclass ambient-light ()
-  ((intensity :initarg :intensity :accessor intensity :type vec3))) ;clamp 0-1
+(defclass light ()
+  ((color :initarg :color :accessor color :type vec3))) ;clamp 0-1
 
-(defclass distant-light ()
-  ((intensity :initarg :intensity :accessor intensity :type vec3)   ;clamp 0-1
+(defclass ambient-light (light) ())
+
+(defclass distant-light (light)
+  ((intensity :initarg :intensity :accessor intensity :type vec3)   ;find reasonable values
    (direction :initarg :direction :accessor direction :type vec3))) ;normalize
 
 (defun reflect (incident normal)
@@ -186,7 +188,7 @@
   "Phong specular highlight calculation."
   (let* ((reflect-dir (reflect (v* -1.0 light-dir) normal))
          (spec-angle (max 0.0 (v. reflect-dir view-dir))))
-    (expt spec-angle (/ shininess 4.0))))
+    (expt spec-angle (/ shininess 4))))
 
 (defun blinn-phong (normal view-dir light-dir shininess)
   "Blinn-Phong specular highlight calculation."
@@ -199,18 +201,19 @@
 
 (defmethod contribute (intr (light ambient-light))
   (with-slots (ambient-k) (ray-intersection-material intr)
-    (with-slots (intensity) light
-      (v* ambient-k intensity))))
+    (with-slots (color) light
+      (v* ambient-k color))))
 
 (defmethod contribute (intr (light distant-light))
   (with-slots (point normal material) intr
     (with-slots (diffuse-k specular-k shininess) material
-      (with-slots (intensity direction) light
+      (with-slots (color intensity direction) light
         (v+ (v* (lambertian normal direction)
                 diffuse-k
                 intensity)
             (v* (phong normal (vunit (v- point)) direction shininess)
                 specular-k
+                color
                 intensity))))))
 
 (defgeneric direction-to (point light)
@@ -250,12 +253,12 @@
 
 (defun ambient-pass (intr light)
   (if (not (null intr))
-      (let ((mat-vec (material-color (ray-intersection-material intr)))
-            (amb-vec (contribute intr light))
-            (ambient (v* mat-vec amb-color)))
+      (let* ((mat-vec (material-color (ray-intersection-material intr)))
+             (amb-vec (contribute intr light))
+             (ambient (v* mat-vec amb-vec)))
         (rgb (vx ambient) (vy ambient) (vz ambient)))
-      (with-slots (intensity) light
-          (rgb (vx intensity) (vy intensity) (vz intensity)))))
+      (with-slots (color) light
+          (rgb (vx color) (vy color) (vz color)))))
 
 (defun color-ambient (ambient)
   "Returns closure for specific ambient light"
@@ -324,7 +327,7 @@
 (defun before-distance (intr distance)
   "Filter for intersections beyond a certain distance"
   (when intr
-    (when (> (distance intr) distance)
+    (when (> (ray-intersection-distance intr) distance)
       nil)))
 
 (defun true (x)
@@ -439,9 +442,10 @@
 
 (defvar intersections (trace-rays rays objects))
 
-(defvar ambient (make-instance 'ambient-light :intensity (vec 0.5 0.5 0.5)))
+(defvar ambient (make-instance 'ambient-light :color (vec 0.5 0.5 0.5)))
 
-(defvar distant (make-instance 'distant-light :intensity (vec 0.25 0.25 0.25)
+(defvar distant (make-instance 'distant-light :color (vec 0.25 0.25 0.25)
+                               :intensity 0.5
                                :direction (vec 0 -1 0)))
 
 (defvar lights (list ambient distant))
