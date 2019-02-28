@@ -245,6 +245,9 @@
 (defmethod direction-to (point (light distant-light))
   (v- (direction light)))
 
+(defmethod direction-to (point (light point-light))
+  (vunit (v- (pos light) point)))
+
 (defgeneric distance-to (point light)
   (:documentation "The distance from a point to a light, for shadow tracing"))
 
