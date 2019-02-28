@@ -176,6 +176,10 @@
   ((intensity :initarg :intensity :accessor intensity :type vec3)   ;find reasonable values
    (direction :initarg :direction :accessor direction :type vec3))) ;normalize
 
+(defclass point-light (light)
+  ((intensity :initarg :intensity :accessor intensity :type vec3)   ;tapered by distance
+   (position :initarg :position :accessor pos :type vec3)))
+
 (defun reflect (incident normal)
   (v- incident (v* 2.0 normal (v. normal incident))))
 
@@ -211,10 +215,25 @@
         (v+ (v* (lambertian normal direction)
                 diffuse-k
                 intensity)
-            (v* (phong normal (vunit (v- point)) direction shininess)
+            (v* (blinn-phong normal (vunit (v- point)) direction shininess)
                 specular-k
                 color
                 intensity))))))
+
+(defmethod contribute (intr (light point-light))
+  (with-slots (point normal material) intr
+    (with-slots (diffuse-k specular-k shininess) material
+      (with-slots (color intensity position) light
+        (let* ((difference (v- position point))
+               (distance (vlength difference))
+               (direction (vunit difference)))
+          (v+ (v* (lambertian normal direction)
+                  diffuse-k
+                  (/ intensity distance))
+              (v* (blinn-phong normal (vunit (v- point)) direction shininess)
+                  specular-k
+                  color
+                  (/ intensity distance))))))))
 
 (defgeneric direction-to (point light)
   (:documentation "Calculate the direction from a point to a light, for shadow tracing"))
