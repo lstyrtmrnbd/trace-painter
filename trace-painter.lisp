@@ -1,3 +1,4 @@
+
 ;;;; trace-painter.lisp
 
 (in-package #:trace-painter)
@@ -94,6 +95,9 @@
   (width 1280 :type integer)
   (height 720 :type integer)
   (position (vec 0 0 0) :type vec3))
+
+(defun aspect-ratio (screen)
+  (/ (screen-width screen) (screen-height screen)))
 
 (defun focal-length (width height fov)
   (sqrt (/ (+ (* width width)
@@ -258,6 +262,9 @@
 (defmethod distance-to (point (light distant-light))
   "Distant light has only a directional origin"
   nil)
+
+(defmethod distance-to (point (light point-light))
+  (vlength (v- (pos light) point)))
 
 ;;;--Shading---------------------------------------------------------------
 ;;--produces RGB results per intersection
@@ -430,6 +437,26 @@
             (move form (v+ (pos form) offset)))
           forms))
 
+;;;--Scene-----------------------------------------------------------
+
+(defstruct scene
+  objects
+  lights)
+
+(defparameter *default-scene* (make-scene))
+
+(defun add-object (object &optional (scene *default-scene*))
+  (push objects (scene-objects scene)))
+
+(defun add-light (light &optional (scene *default-scene*))
+  (push light (scene-lights scene)))
+
+(defun render (scene screen)
+  (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90))))
+         (intersections (trace-rays rays (scene-objects scene))))
+    (test-render intersections
+                 (shadow-lights (scene-lights scene) (scene-objects scene)))))
+
 ;;;--Test Scene------------------------------------------------------
 
 (defvar test-screen (make-screen))
@@ -471,6 +498,14 @@
                                :direction (vec 0 -1 0)))
 
 (defvar lights (list ambient distant))
+
+(defun render-screen (intersections color-fn screen)
+  (write-png (generate-filename)
+             (array-to-png (intersections-to-array intersections
+                                                   (screen-width screen)
+                                                   (screen-height screen)
+                                                   color-fn)
+                           8)))
 
 (defun test-render (intersections color-fn)
   (write-png (generate-filename)
