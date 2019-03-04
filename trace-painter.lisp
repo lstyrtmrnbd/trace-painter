@@ -446,23 +446,34 @@
 (defparameter *default-scene* (make-scene))
 
 (defun add-object (object &optional (scene *default-scene*))
-  (push objects (scene-objects scene)))
+  (push object (scene-objects scene)))
 
 (defun add-light (light &optional (scene *default-scene*))
   (push light (scene-lights scene)))
 
+(defun add-objects (objects &optional (scene *default-scene*))
+  (mapc (lambda (object)
+          (add-object object scene))
+        objects))
+
+(defun add-lights (lights &optional (scene *default-scene*))
+  (mapc (lambda (light)
+          (add-light light scene))
+        lights))
+
 (defun render (scene screen)
-  (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90))))
+  (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90)))) ;90deg FOV
          (intersections (trace-rays rays (scene-objects scene))))
     (test-render intersections
                  (shadow-lights (scene-lights scene) (scene-objects scene)))))
 
 ;;;--Test Scene------------------------------------------------------
 
+;;encapsulate in some camera
 (defvar test-screen (make-screen))
 (defvar test-origin (vec 0 0 (screen-focus test-screen 90)))
 
-(defvar rays (generate-rays test-screen test-origin))
+;(defvar rays (generate-rays test-screen test-origin))
 
 (defvar red-mat (make-material :color (vec 1 0 0)))
 (defvar green-mat (make-material :color (vec 0 1 0)))
@@ -470,34 +481,28 @@
 
 (defvar grey-material (make-material :color (vec 0.5 0.5 0.5)))
 
-(defvar sphere0 (make-instance 'sphere :r 128
-                               :pos (vec 0 0 -64)
-                               :material green-mat))
-
-(defvar sphere1 (make-instance 'sphere :r 128
-                               :pos (vec -256 0 -64)
-                               :material blue-mat))
-
-(defvar sphere2 (make-instance 'sphere :r 128
-                               :pos (vec 256 0 -64)
-                               :material red-mat))
-
-(defvar plane0 (make-instance 'plane
-                              :pos (vec 0 -256 -64)
-                              :normal (vunit (vec 0 -1 -0.125))
-                              :material grey-material))
-
-(defvar objects (list sphere0 sphere1 sphere2 plane0))
-
-(defvar intersections (trace-rays rays objects))
-
-(defvar ambient (make-instance 'ambient-light :color (vec 0.5 0.5 0.5)))
-
-(defvar distant (make-instance 'distant-light :color (vec 0.25 0.25 0.25)
-                               :intensity 0.5
-                               :direction (vec 0 -1 0)))
-
-(defvar lights (list ambient distant))
+(defun fill-default-scene ()
+  (progn
+    (add-objects
+     (list (make-sphere 128
+                        (vec 0 0 -64)
+                        green-mat)
+           (make-sphere 128
+                        (vec -256 0 -64)
+                        blue-mat)
+           (make-sphere 128
+                        (vec 256 0 -64)
+                        red-mat)
+           (make-plane (vec 0 -256 -64)
+                       (vunit (vec 0 -1 -0.125))
+                       grey-material)))
+    (add-lights
+     (list (make-instance 'ambient-light
+                          :color (vec 0.5 0.5 0.5))
+           (make-instance 'distant-light
+                          :color (vec 0.25 0.25 0.25)
+                          :intensity 0.5
+                          :direction (vec 0 -1 0))))))
 
 (defun render-screen (intersections color-fn screen)
   (write-png (generate-filename)
