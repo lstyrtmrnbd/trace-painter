@@ -153,6 +153,22 @@
             (intersect object ray))
           objects))
 
+(defun trace-vals (origin direction objects)
+  (trace-ray (make-instance 'ray :origin origin
+                            :dir direction)
+             objects))
+
+(defun before-distance (intr distance)
+  "Filter for intersections beyond a certain distance"
+  (when intr
+    (when (> (ray-intersection-distance intr) distance)
+      nil)))
+
+(defun within-distance (intersections distance)
+  (remove-if (lambda (inter)
+               (before-distance inter distance))
+             intersections))
+
 (defun count-hits (intersections)
   (count-if (lambda (inter)
               (not (null inter)))
@@ -181,7 +197,7 @@
    (direction :initarg :direction :accessor direction :type vec3))) ;normalize
 
 (defclass point-light (light)
-  ((intensity :initarg :intensity :accessor intensity :type vec3)   ;tapered by distance
+  ((intensity :initarg :intensity :accessor intensity :type fixnum)   ;tapered by distance
    (position :initarg :position :accessor pos :type vec3)))
 
 (defun reflect (incident normal)
@@ -333,16 +349,34 @@
   (lambda (intr)
     (shade intr lights)))
 
+(defgeneric cast-shadows (point objects light)
+  (:documentation "Trace ray to light from point to determine shadows, returning nil if shaded and the light otherwise"))
+
+(defmethod cast-shadows (point objects (light ambient-light))
+  "Ambient light can't be shadowed"
+  light)
+
+(defmethod cast-shadows (point objects (light distant-light))
+  (unless (any-hits
+           (trace-vals point
+                       (direction-to point light)
+                       objects))
+    light))
+
+(defmethod cast-shadows (point objects (light point-light))
+  (unless (any-hits
+           (within-distance (trace-vals point
+                                        (direction-to point light)
+                                        objects)
+                            (distance-to point light)))
+    light))
+
 (defun filter-shadows (intr lights objects)
   "Filters a list of lights through shadowcasting"
   (with-slots (point) intr
     (remove-if #'null
                (mapcar (lambda (light)
-                         (unless (alexandria:when-let (direction (direction-to point light))
-                                   (any-hits (trace-ray (make-instance 'ray :origin point
-                                                                       :dir direction)
-                                                        objects)))
-                           light))
+                         (cast-shadows point objects light))
                        lights))))
 
 ;; The higher up the null intersection test in the pipeline the better
@@ -352,15 +386,6 @@
     (if intr
         (shade intr (filter-shadows intr lights objects))
         (shade intr lights))))
-
-(defun before-distance (intr distance)
-  "Filter for intersections beyond a certain distance"
-  (when intr
-    (when (> (ray-intersection-distance intr) distance)
-      nil)))
-
-(defun true (x)
-  (not (null x)))
 
 ;;;--Formatting-and-Output--------------------------------------------------
 
@@ -473,15 +498,12 @@
 (defvar test-screen (make-screen))
 (defvar test-origin (vec 0 0 (screen-focus test-screen 90)))
 
-;(defvar rays (generate-rays test-screen test-origin))
-
 (defvar red-mat (make-material :color (vec 1 0 0)))
 (defvar green-mat (make-material :color (vec 0 1 0)))
 (defvar blue-mat (make-material :color (vec 0 0 1)))
-
 (defvar grey-material (make-material :color (vec 0.5 0.5 0.5)))
 
-(defun fill-default-scene ()
+(defun fill-test-scene ()
   (progn
     (add-objects
      (list (make-sphere 128
