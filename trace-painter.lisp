@@ -158,16 +158,16 @@
                             :dir direction)
              objects))
 
-(defun before-distance (intr distance)
+(defun before-distance-p (intr distance)
   "Filter for intersections beyond a certain distance"
   (when intr
-    (when (> (ray-intersection-distance intr) distance)
-      nil)))
+    (unless (> (ray-intersection-distance intr) distance)
+      t)))
 
 (defun within-distance (intersections distance)
-  (remove-if (lambda (inter)
-               (before-distance inter distance))
-             intersections))
+  (remove-if-not (lambda (inter)
+                   (before-distance-p inter distance))
+                 intersections))
 
 (defun count-hits (intersections)
   (count-if (lambda (inter)
