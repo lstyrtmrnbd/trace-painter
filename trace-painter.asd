@@ -9,6 +9,7 @@
   :depends-on (#:3d-vectors
                #:3d-matrices
                #:png
-               #:alexandria)
+               #:alexandria
+               #:trivial-project-pathname)
   :components ((:file "package")
                (:file "trace-painter")))

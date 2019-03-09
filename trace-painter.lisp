@@ -430,11 +430,16 @@
                           :direction :output :if-exists :supersede)
     (png:encode png output)))
 
+(project-pathname:define project-path (:asdf "trace-painter")
+  (:renders "renders"))
+
 (defun generate-filename ()
-  (pathname (concatenate 'string
-                         "c:/Users/user0/src/CL/trace-painter/renders/render-"
-                         (write-to-string (get-universal-time))
-                         ".png")))
+  "Generate a filename for render output tagged with current time"
+  (project-path (concatenate 'string
+                             "render-"
+                             (write-to-string (get-universal-time))
+                             ".png")
+                :renders))
 
 ;;;--Modeling--------------------------------------------------------
 
