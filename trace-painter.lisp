@@ -495,7 +495,7 @@
   (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90)))) ;90deg FOV
          (intersections (trace-rays rays (scene-objects scene))))
     (test-render intersections
-                 (shadow-lights (scene-lights scene) (scene-objects scene)))))
+                 (shadow-lights (scene-lights scene) (scene-objects scene))))) ;static shader
 
 ;;;--Test Scene------------------------------------------------------
 
@@ -529,7 +529,11 @@
            (make-instance 'distant-light
                           :color (vec 0.25 0.25 0.25)
                           :intensity 0.5
-                          :direction (vec 0 -1 0))))))
+                          :direction (vec 0 -1 0))
+           (make-instance 'point-light
+                          :color (vec 1.0 1.0 1.0)
+                          :intensity 256
+                          :position (vec 128 -128 -32))))))
 
 (defun render-screen (intersections color-fn screen)
   (write-png (generate-filename)
