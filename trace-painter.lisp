@@ -161,8 +161,8 @@
 (defun before-distance-p (intr distance)
   "Filter for intersections beyond a certain distance"
   (when intr
-    (unless (> (ray-intersection-distance intr) distance)
-      t)))
+    (< (ray-intersection-distance intr)
+       distance)))
 
 (defun within-distance (intersections distance)
   (remove-if-not (lambda (inter)
