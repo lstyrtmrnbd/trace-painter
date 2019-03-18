@@ -491,6 +491,11 @@
           (add-light light scene))
         lights))
 
+(defun empty-scene (&optional (scene *default-scene*))
+  (progn
+    (setf (scene-objects scene) '())
+    (setf (scene-lights scene) '())))
+
 (defun render (scene screen)
   (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90)))) ;90deg FOV
          (intersections (trace-rays rays (scene-objects scene))))
@@ -512,15 +517,15 @@
   (progn
     (add-objects
      (list (make-sphere 128
-                        (vec 0 0 -64)
+                        (vec 0 0 -256)
                         green-mat)
            (make-sphere 128
-                        (vec -256 0 -64)
+                        (vec -256 0 -256)
                         blue-mat)
            (make-sphere 128
-                        (vec 256 0 -64)
+                        (vec 256 0 -256)
                         red-mat)
-           (make-plane (vec 0 -256 -64)
+           (make-plane (vec 0 -256 -256)
                        (vunit (vec 0 -1 -0.125))
                        grey-material)))
     (add-lights
