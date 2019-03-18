@@ -197,7 +197,7 @@
    (direction :initarg :direction :accessor direction :type vec3))) ;normalize
 
 (defclass point-light (light)
-  ((intensity :initarg :intensity :accessor intensity :type fixnum)   ;tapered by distance
+  ((intensity :initarg :intensity :accessor intensity :type fixnum) ;tapered by distance
    (position :initarg :position :accessor pos :type vec3)))
 
 (defun reflect (incident normal)
@@ -206,11 +206,11 @@
 (defun lambertian (normal direction)
   "Diffuse lighting calculation.
    normal: surface normal, direction: light direction"
-  (max 0.0 (v. normal (v* -1.0 direction))))
+  (max 0.0 (v. normal (v- direction))))
 
 (defun phong (normal view-dir light-dir shininess)
   "Phong specular highlight calculation."
-  (let* ((reflect-dir (reflect (v* -1.0 light-dir) normal))
+  (let* ((reflect-dir (reflect (v- light-dir) normal))
          (spec-angle (max 0.0 (v. reflect-dir view-dir))))
     (expt spec-angle (/ shininess 4))))
 
@@ -229,28 +229,28 @@
       (v* ambient-k color))))
 
 (defmethod contribute (intr (light distant-light))
-  (with-slots (point normal material) intr
+  (with-slots (point normal material (view-dir direction)) intr
     (with-slots (diffuse-k specular-k shininess) material
-      (with-slots (color intensity direction) light
-        (v+ (v* (lambertian normal direction)
+      (with-slots (color intensity (light-dir direction)) light
+        (v+ (v* (lambertian normal light-dir)
                 diffuse-k
                 intensity)
-            (v* (blinn-phong normal (vunit (v- point)) direction shininess)
+            (v* (blinn-phong normal view-dir light-dir shininess)
                 specular-k
                 color
                 intensity))))))
 
 (defmethod contribute (intr (light point-light))
-  (with-slots (point normal material) intr
+  (with-slots (point normal material (view-dir direction)) intr
     (with-slots (diffuse-k specular-k shininess) material
       (with-slots (color intensity position) light
         (let* ((difference (v- position point))
                (distance (vlength difference))
-               (direction (vunit difference)))
-          (v+ (v* (lambertian normal direction)
+               (light-dir (vunit difference)))
+          (v+ (v* (lambertian normal light-dir)
                   diffuse-k
                   (/ intensity distance))
-              (v* (blinn-phong normal (vunit (v- point)) direction shininess)
+              (v* (blinn-phong normal view-dir light-dir shininess)
                   specular-k
                   color
                   (/ intensity distance))))))))
