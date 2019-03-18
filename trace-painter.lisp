@@ -23,8 +23,8 @@
   (color (vec3 0 0 0) :type vec3)
   (ambient-k (vec3 1.0 1.0 1.0) :type vec3)
   (diffuse-k (vec3 1.0 1.0 1.0) :type vec3)
-  (specular-k (vec3 0 0 0) :type vec3)
-  (shininess 0 :type integer)) ;must be integer for (expt 0 shininess)
+  (specular-k (vec3 1.0 1.0 1.0) :type vec3)
+  (shininess 1 :type integer)) ;must be integer for (expt 0 shininess)
 
 (defvar default-material (make-material))
 
