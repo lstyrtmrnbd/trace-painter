@@ -467,6 +467,13 @@
             (move form (v+ (pos form) offset)))
           forms))
 
+(defun add-color (col obj)
+  (setf (material-color (material obj))
+	(clamp (v+ col (material-color (material obj))) 0.0 1.0)))
+
+(defun add-mat-property (v obj slot-name)
+  (setf (slot-value (material obj) slot-name)
+	(clamp (v+ v (slot-value (material obj) slot-name)) 0.0 1.0)))
 ;;;--Scene-----------------------------------------------------------
 
 (defstruct scene
