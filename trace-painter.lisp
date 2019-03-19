@@ -515,37 +515,45 @@
 (defvar test-screen (make-screen))
 (defvar test-origin (vec 0 0 (screen-focus test-screen 90)))
 
-(defvar red-mat (make-material :color (vec 1 0 0)))
-(defvar green-mat (make-material :color (vec 0 1 0)))
-(defvar blue-mat (make-material :color (vec 0 0 1)))
+(defvar red-mat (make-material :color (vec 1 0.25 0.25)))
+(defvar green-mat (make-material :color (vec 0.25 1 0.25)))
+(defvar blue-mat (make-material :color (vec 0.25 0.25 1)))
 (defvar grey-material (make-material :color (vec 0.5 0.5 0.5)))
 
 (defun fill-test-scene ()
   (progn
-    (add-objects
-     (list (make-sphere 128
-                        (vec 0 0 -256)
-                        green-mat)
-           (make-sphere 128
-                        (vec -256 0 -256)
-                        blue-mat)
-           (make-sphere 128
-                        (vec 256 0 -256)
-                        red-mat)
-           (make-plane (vec 0 -256 -256)
-                       (vunit (vec 0 -1 -0.125))
-                       grey-material)))
-    (add-lights
-     (list (make-instance 'ambient-light
-                          :color (vec 0.5 0.5 0.5))
-           (make-instance 'distant-light
-                          :color (vec 0.25 0.25 0.25)
-                          :intensity 0.5
-                          :direction (vec 0 -1 0))
-           (make-instance 'point-light
-                          :color (vec 1.0 1.0 1.0)
-                          :intensity 256
-                          :position (vec 128 -128 -32))))))
+    (let ((green-sphere (make-sphere 128
+                                     (vec 0 0 -256)
+                                     green-mat))
+          (blue-sphere (make-sphere 128
+                                    (vec -256 0 -256)
+                                    blue-mat))
+          (red-sphere (make-sphere 128
+                                   (vec 256 0 -256)
+                                   red-mat))
+          (grey-plane (make-plane (vec 0 -256 -256)
+                                  (vunit (vec 0 -1 -0.125))
+                                  grey-material)))
+      (setf (material-shininess (material red-sphere))
+            4)
+      (setf (material-shininess (material green-sphere))
+            2)
+      (add-objects (list green-sphere blue-sphere red-sphere grey-plane)))
+    (let ((ambient (make-instance 'ambient-light
+                                  :color (vec 0.5 0.5 0.5)))
+          (distant (make-instance 'distant-light
+                                  :color (vec 0.25 0.25 0.25)
+                                  :intensity 0.5
+                                  :direction (vec 0 -1 0)))
+          (point-1 (make-instance 'point-light
+                                  :color (vec 1.0 1.0 1.0)
+                                  :intensity 128
+                                  :position (vec 128 128 -32)))
+          (point-2 (make-instance 'point-light
+                                  :color (vec 1.0 1.0 1.0)
+                                  :intensity 128
+                                  :position (vec -128 128 -224))))
+      (add-lights (list ambient distant point-1 point-2)))))
 
 (defun render-screen (intersections color-fn screen)
   (write-png (generate-filename)
