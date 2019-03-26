@@ -538,14 +538,6 @@
             4)
       (setf (material-shininess (material green-sphere))
             2)
-      (setf (material-specular-k (material red-sphere))
-            (vec 0.0 0.25 1.0))
-      (setf (material-diffuse-k (material red-sphere))
-            (vec 0.0 0.5 1.0))
-      (setf (material-ambient-k (material red-sphere))
-            (vec 0.0 0.5 1.0))
-      (setf (material-color (material red-sphere))
-            (vec 1.0 1.0 1.0))
       (add-objects (list green-sphere blue-sphere red-sphere grey-plane)))
     (let ((ambient (make-instance 'ambient-light
                                   :color (vec 0.5 0.5 0.5)))
@@ -558,7 +550,7 @@
                                   :intensity 128
                                   :position (vec 256 128 -32)))
           (point-2 (make-instance 'point-light
-                                  :color (vec 1.0 0.125 0.125)
+                                  :color (vec .25 0.75 0.5)
                                   :intensity 128
                                   :position (vec -128 128 -224))))
       (add-lights (list ambient distant point-1 point-2)))))
