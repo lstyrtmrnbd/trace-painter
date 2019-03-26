@@ -1,8 +1,8 @@
-;;;; trace-painter.asd
+;;;; traces.asd
 
-(asdf:defsystem #:trace-painter
+(asdf:defsystem #:traces
   :description "Ray tracer"
-  :author "Your Name <your.name@example.com>"
+  :author "Date Terumune"
   :license  "MIT"
   :version "0.0.1"
   :serial t
@@ -12,4 +12,4 @@
                #:alexandria
                #:trivial-project-pathname)
   :components ((:file "package")
-               (:file "trace-painter")))
+               (:file "traces")))
