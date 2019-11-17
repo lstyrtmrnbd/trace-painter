@@ -430,7 +430,7 @@
                           :direction :output :if-exists :supersede)
     (png:encode png output)))
 
-(project-pathname:define project-path (:asdf "trace-painter")
+(project-pathname:define project-path (:asdf "traces")
   (:renders "renders"))
 
 (defun generate-filename ()
