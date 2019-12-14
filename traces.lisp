@@ -526,12 +526,11 @@
                    screen)))
 
 ;;;--Post Processing-------------------------------------------------
-;; "color" refers to either an rgb value or a individual channel of an
-;; rgb value depending on context
-
-;; would be nice if this was baked into RGB type
-(defun clamp-set (color val)
-  (setf color (clamp val 0.0 1.0)))
+;;
+;; - "color" refers to either an rgb value or a individual channel of
+;;       an rgb value depending on context
+;;
+;; - would be nice if the clamping was baked into setting RGB slots
 
 (defun process-rgb (color red-fn green-fn blue-fn)
   (with-slots (red green blue) color
@@ -552,6 +551,26 @@
       (progn
         (process-all color #'apply-factor)
         color))))
+
+;; returns fn for render post-process-fn
+(defun contrast-changer (factor)
+  (lambda (x) (change-contrast x factor)))
+
+(defun change-contrast-nonlinear (color factor)
+  (flet ((apply-factor (x) (expt x factor)))
+    (when color
+      (progn
+        (process-all color #'apply-factor)
+        color))))
+
+(defun nonlinear-contrast-changer (factor)
+  (lambda (x) (change-contrast-nonlinear x factor)))
+
+(defun invert (color)
+  (when color
+    (progn
+      (process-all color (lambda (x) (- 1.0 x)))
+      color)))
 
 ;;;--Test Scene------------------------------------------------------
 
