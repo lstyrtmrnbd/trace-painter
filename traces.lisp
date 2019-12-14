@@ -529,29 +529,35 @@
 ;; "color" refers to either an rgb value or a individual channel of an
 ;; rgb value depending on context
 
+;; would be nice if this was baked into RGB type
 (defun clamp-set (color val)
   (setf color (clamp val 0.0 1.0)))
 
 (defun process-rgb (color red-fn green-fn blue-fn)
   (with-slots (red green blue) color
-    (clamp-set red (funcall red-fn red))
-    (clamp-set green (funcall green-fn green))
-    (clamp-set blue (funcall blue-fn blue)))
+    (let ((new-red (funcall red-fn red))
+          (new-green (funcall green-fn green))
+          (new-blue (funcall blue-fn blue)))
+        (setf red (clamp new-red 0.0 1.0))
+        (setf green (clamp new-green 0.0 1.0))
+        (setf blue (clamp new-blue 0.0 1.0))))
   color)
+
+(defun process-all (color fn)
+  (process-rgb color fn fn fn))
 
 (defun change-contrast (color factor)
   (flet ((apply-factor (x) (* x factor)))
     (when color
-      (process-rgb color
-                   #'apply-factor
-                   #'apply-factor
-                   #'apply-factor))))
+      (progn
+        (process-all color #'apply-factor)
+        color))))
 
 ;;;--Test Scene------------------------------------------------------
 
 ;;encapsulate in some camera
 (defvar *test-screen* (make-screen))
-(defvar *test-origin* (vec 0 0 (screen-focus test-screen 90)))
+(defvar *test-origin* (vec 0 0 (screen-focus *test-screen* 90)))
 
 (defvar red-mat (make-material :color (vec 1 0.25 0.25)))
 (defvar green-mat (make-material :color (vec 0.25 1 0.25)))
