@@ -389,15 +389,16 @@
 
 ;;;--Formatting-and-Output--------------------------------------------------
 
-(defun intersections-to-array (lst width height
-                               &optional (color-fn #'identity))
+(defun intersections-to-array (lst width height &optional
+                                                  (shading-fn #'identity)
+                                                  (post-process-fn #'identity))
   "Maps the 1D intersection list to a 2D array, 
-   optionally transforming each element by color-fn"
+   optionally transforming each element by shading-fn"
   (let ((result (make-array (list width height))))
     (labels ((walk (ls ctr)
                (when (< ctr (* width height)) ;assumes length of list >= w*h
                  (setf (aref result (floor ctr height) (mod ctr height))
-                       (funcall color-fn (car ls)))
+                       (funcall post-process-fn (funcall shading-fn (car ls))))
                  (walk (cdr ls) (1+ ctr)))))
       (walk lst 0))
     result))
@@ -503,17 +504,54 @@
     (setf (scene-objects scene) '())
     (setf (scene-lights scene) '())))
 
-(defun render (scene screen)
+;;;--Rendering-------------------------------------------------------
+
+(defun render-screen (intersections shading-fn post-process-fn screen)
+  (write-png (generate-filename)
+             (array-to-png
+              (intersections-to-array intersections
+                                      (screen-width screen)
+                                      (screen-height screen)
+                                      shading-fn
+                                      post-process-fn)
+              8)))
+
+(defun render (scene screen &optional post-process-fn)
   (let* ((rays (generate-rays screen (vec 0 0 (screen-focus screen 90)))) ;90deg FOV
          (intersections (trace-rays rays (scene-objects scene))))
-    (test-render intersections
-                 (shadow-lights (scene-lights scene) (scene-objects scene))))) ;static shader
+    (render-screen intersections
+                   (shadow-lights (scene-lights scene)
+                                  (scene-objects scene)) ;static shader
+                   post-process-fn
+                   screen)))
+
+;;;--Post Processing-------------------------------------------------
+;; "color" refers to either an rgb value or a individual channel of an
+;; rgb value depending on context
+
+(defun clamp-set (color val)
+  (setf color (clamp val 0.0 1.0)))
+
+(defun process-rgb (color red-fn green-fn blue-fn)
+  (with-slots (red green blue) color
+    (clamp-set red (funcall red-fn red))
+    (clamp-set green (funcall green-fn green))
+    (clamp-set blue (funcall blue-fn blue)))
+  color)
+
+(defun change-contrast (color factor)
+  (flet ((apply-factor (x) (* x factor)))
+    (when color
+      (process-rgb color
+                   #'apply-factor
+                   #'apply-factor
+                   #'apply-factor))))
 
 ;;;--Test Scene------------------------------------------------------
 
 ;;encapsulate in some camera
-(defvar test-screen (make-screen))
-(defvar test-origin (vec 0 0 (screen-focus test-screen 90)))
+(defvar *test-screen* (make-screen))
+(defvar *test-origin* (vec 0 0 (screen-focus test-screen 90)))
 
 (defvar red-mat (make-material :color (vec 1 0.25 0.25)))
 (defvar green-mat (make-material :color (vec 0.25 1 0.25)))
@@ -555,19 +593,4 @@
                                   :position (vec -128 128 -224))))
       (add-lights (list ambient distant point-1 point-2)))))
 
-(defun render-screen (intersections color-fn screen)
-  (write-png (generate-filename)
-             (array-to-png (intersections-to-array intersections
-                                                   (screen-width screen)
-                                                   (screen-height screen)
-                                                   color-fn)
-                           8)))
-
-(defun test-render (intersections color-fn)
-  (write-png (generate-filename)
-             (array-to-png (intersections-to-array intersections
-                                                   (screen-width test-screen)  ;!!
-                                                   (screen-height test-screen) ;!!
-                                                   color-fn)
-                           8)))
 
