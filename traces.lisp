@@ -283,7 +283,7 @@
   (vlength (v- (pos light) point)))
 
 ;;;--Shading---------------------------------------------------------------
-;;--produces RGB results per intersection
+;; -produces RGB results per intersection
 
 (defun basic-hit-fn (intr)
   (if (not (null intr))
@@ -475,6 +475,7 @@
 (defun add-mat-property (v obj slot-name)
   (setf (slot-value (material obj) slot-name)
 	(clamp (v+ v (slot-value (material obj) slot-name)) 0.0 1.0)))
+
 ;;;--Scene-----------------------------------------------------------
 
 (defstruct scene
@@ -576,14 +577,13 @@
 
 ;;encapsulate in some camera
 (defvar *test-screen* (make-screen))
-(defvar *test-origin* (vec 0 0 (screen-focus *test-screen* 90)))
 
 (defvar red-mat (make-material :color (vec 1 0.25 0.25)))
 (defvar green-mat (make-material :color (vec 0.25 1 0.25)))
 (defvar blue-mat (make-material :color (vec 0.25 0.25 1)))
 (defvar grey-material (make-material :color (vec 0.5 0.5 0.5)))
 
-(defun fill-test-scene ()
+(defun tri-ball-scene ()
   (progn
     (let ((green-sphere (make-sphere 128
                                      (vec 0 0 -256)
@@ -618,4 +618,28 @@
                                   :position (vec -128 128 -224))))
       (add-lights (list ambient distant point-1 point-2)))))
 
+;;;--Patterning------------------------------------------------------
 
+;; p is a point on a sphere
+;; origin is the origin of the sphere
+(defun spherical-map (p origin)
+  (let* ((theta (atan (vx p) (vz p)))
+         (vect (v+ origin p))         ; use sphere origin
+         (radius (vlength vect))
+         (phi (acos (/ (vy p) radius)))
+         (raw-u (/ theta (* 2 PI)))
+         (ucoord (- 1 (+ raw-u 0.5)))
+         (vcoord (- 1 (/ phi PI))))
+    (vec ucoord vcoord)))
+
+(defun uv-checkers (width height color-a color-b)
+  (lambda (uv)
+    (let ((u2 (floor (* (vx uv) width)))
+          (v2 (floor (* (vy uv) height))))
+      (if (= 0 (mod (+ u2 v2) 2))
+          color-a
+          color-b))))
+
+(defun texture-map (uv-pattern uv-map)
+  (lambda (p origin)
+    (funcall uv-pattern (funcall uv-map p origin))))
